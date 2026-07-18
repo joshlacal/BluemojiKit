@@ -6,9 +6,9 @@ let package = Package(
   platforms: [.iOS(.v18), .macOS(.v15)],
   products: [.library(name: "BluemojiKit", targets: ["BluemojiKit"])],
   dependencies: [
-    .package(path: "../Petrel"),
-    .package(path: "../PetrelBluemoji"),
-    .package(path: "../AdaptiveGlyphKit"),
+    .package(url: "https://github.com/joshlacal/Petrel.git", from: "1.0.1"),
+    .package(url: "https://github.com/joshlacal/PetrelBluemoji.git", from: "0.1.0"),
+    .package(url: "https://github.com/joshlacal/AdaptiveGlyphKit.git", from: "0.1.0"),
   ],
   targets: [
     .target(name: "BluemojiKit", dependencies: [
