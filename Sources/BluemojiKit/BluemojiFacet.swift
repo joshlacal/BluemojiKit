@@ -1,4 +1,5 @@
 import Petrel
+import PetrelBluemoji
 
 /// A self-attested `blue.moji.richtext.facet` claim extracted from a post's
 /// rich-text facets. **Not** yet verified — resolve it against the AppView
@@ -16,17 +17,17 @@ public enum BluemojiFacet {
   /// Extract Bluemoji claims from a post's facets.
   ///
   /// A `blue.moji.richtext.facet` feature is not a first-party Bluesky type, so
-  /// Petrel decodes it into `.unexpected(container)`. We match its `$type` and
-  /// read `did` / `name` straight out of the raw container.
+  /// Petrel decodes it into `.unexpected(container)`. The container's shape
+  /// depends on registration: `.unknownType(type, .object(...))` when the
+  /// blue.moji lexicons are unregistered (the default), `.knownType` when
+  /// `PetrelBluemojiLexicons.register()` has run, or a bare `.object` when
+  /// constructed in memory.
   public static func claims(in facets: [AppBskyRichtextFacet]) -> [BluemojiClaim] {
     var claims: [BluemojiClaim] = []
     for facet in facets {
       for feature in facet.features {
         guard case let .unexpected(container) = feature,
-              case let .object(fields) = container,
-              case let .string(typeValue)? = fields["$type"], typeValue == type,
-              case let .string(did)? = fields["did"],
-              case let .string(name)? = fields["name"]
+              let (did, name) = didAndName(from: container)
         else { continue }
         claims.append(BluemojiClaim(
           did: did, name: name,
@@ -34,5 +35,32 @@ public enum BluemojiFacet {
       }
     }
     return claims
+  }
+
+  private static func didAndName(from container: ATProtocolValueContainer) -> (String, String)? {
+    switch container {
+    case let .unknownType(typeValue, inner):
+      guard typeValue == type, case let .object(fields) = inner else { return nil }
+      return didAndName(fromRaw: fields, checkType: false)
+    case let .knownType(value):
+      guard let typed = value as? BlueMojiRichtextFacet else { return nil }
+      return (typed.did, typed.name)
+    case let .object(fields):
+      return didAndName(fromRaw: fields, checkType: true)
+    default:
+      return nil
+    }
+  }
+
+  private static func didAndName(
+    fromRaw fields: [String: ATProtocolValueContainer], checkType: Bool
+  ) -> (String, String)? {
+    if checkType {
+      guard case let .string(typeValue)? = fields["$type"], typeValue == type else { return nil }
+    }
+    guard case let .string(did)? = fields["did"],
+          case let .string(name)? = fields["name"]
+    else { return nil }
+    return (did, name)
   }
 }
